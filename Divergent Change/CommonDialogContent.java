@@ -25,7 +25,7 @@ public class CommonDialogContent extends BaseDialogFragment {
             @Override public int bindLayout()  { return R.layout.common_dialog_content; }
 
             @Override
-            public void initView(BaseDialogFragment dialog, View v) {           // único Divergent Change
+            public void initView(BaseDialogFragment dialog, View v) {          
                 cdcTitleRl            = v.findViewById(R.id.cdcTitleRl);
                 cdcTitleTv            = v.findViewById(R.id.cdcTitleTv);
                 cdcContentRl          = v.findViewById(R.id.cdcContentRl);
