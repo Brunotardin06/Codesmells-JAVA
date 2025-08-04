@@ -138,7 +138,7 @@ public abstract class CompressedResource extends Resource {
         throw new BuildException("cannot set '" + attr + "' on compressed resource");
     }
 
-    @Override
+  
     public void setRefid(Reference r) {
         if (wrapped != null) throw noChildrenAllowed();
         super.setRefid(r);
