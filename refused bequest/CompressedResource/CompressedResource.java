@@ -102,9 +102,6 @@ public abstract class CompressedResource extends Resource {
         return out == null ? null : wrapStream(out);
     }
 
-    /* ------------------------------------------------------------------ *
-     *  Mutators rejeitados – Refused Bequest                              *
-     * ------------------------------------------------------------------ */
 
     public void setName        (String  s)    { reject("name");        }
     public void setExists      (boolean b)    { reject("exists");      }
