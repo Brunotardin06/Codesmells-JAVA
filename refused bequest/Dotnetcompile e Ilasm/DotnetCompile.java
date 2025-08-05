@@ -5,148 +5,193 @@ import org.apache.tools.ant.types.*;
 
 import java.io.File;
 import java.util.*;
+import java.util.function.*;
 
-/* Mantém apenas o smell “refused bequest” da superclasse */
+
 public abstract class DotnetCompile extends DotnetBaseMatchingTask {
 
-    /* ======================= configuração ======================== */
-    protected final CompilerConfig cfg = new CompilerConfig();
+    
+    private final CompileOptions options = new CompileOptions();
 
-    /* ---------------- setters públicos ---------------- */
-    public void setReferences(String refs)                { cfg.references = refs; }
-    public void addReference(FileSet fs)                  { cfg.referenceSets.add(fs); }
-    public void addDefine(DotnetDefine def)               { cfg.definitions.add(def); }
-    public void addResource(DotnetResource res)           { cfg.resources.add(res); }
-    public void setExecutable(String exe)                 { cfg.executable = exe; }
-    public void setDebug(boolean flag)                    { cfg.debug = flag; }
-    public void setOptimize(boolean flag)                 { cfg.optimize = flag; }
-    public void setWarnLevel(int lvl)                     { cfg.warnLevel = lvl; }
-    public void setTargetType(TargetTypes t)              { cfg.targetType = t.getValue(); }
-    public void setMainClass(String cls)                  { cfg.mainClass = cls; }
-    public void setExtraOptions(String opts)              { cfg.extraOptions = opts; }
-    public void setAdditionalModules(String m)            { cfg.additionalModules = m; }
-    public void setUtf8Output(boolean flag)               { cfg.utf8output = flag; }
-    public void setIncludeDefaultReferences(boolean flag) { cfg.includeDefaultRefs = flag; }
-    public void setWin32Icon(File f)                      { cfg.win32icon = f; }
-    public void setWin32Res(File f)                       { cfg.win32res  = f; }
-    public void setFailOnError(boolean b)                 { cfg.failOnError = b; }
+    public void setReferences(String r)                { options.references(r); }
+    public void addReference(FileSet fs)               { options.referenceSet(fs); }
+    public void addDefine(DotnetDefine d)              { options.define(d); }
+    public void addResource(DotnetResource r)          { options.resource(r); }
+    public void setExecutable(String exe)              { options.executable(exe); }
+    public void setDebug(boolean f)                    { options.debug(f); }
+    public void setOptimize(boolean f)                 { options.optimize(f); }
+    public void setWarnLevel(int n)                    { options.warnLevel(n); }
+    public void setTargetType(TargetTypes t)           { options.targetType(t.getValue()); }
+    public void setMainClass(String c)                 { options.mainClass(c); }
+    public void setExtraOptions(String x)              { options.extra(x); }
+    public void setAdditionalModules(String m)         { options.additionalModules(m); }
+    public void setUtf8Output(boolean f)               { options.utf8Output(f); }
+    public void setIncludeDefaultReferences(boolean f) { options.includeDefaultRefs(f); }
+    public void setWin32Icon(File f)                   { options.win32Icon(f); }
+    public void setWin32Res(File f)                    { options.win32Res(f); }
+    public void setFailOnError(boolean f)              { options.failOnError(f); }
+
+    
     @Override public void setDestDir(File ignored) {
         log("DestDir não é utilizado por DotnetCompile", Project.MSG_VERBOSE);
     }
 
-    /* ========================= execução ========================= */
+
     @Override public void execute() throws BuildException {
-        validate();
-        NetCommand cmd = createNetCommand();
-        cfg.populate(cmd, this);
-        addCompilerSpecificOptions(cmd);          // hook de subclasses
-        int outdated = cfg.scanReferenceSets(cmd, getProject(),
-                          getOutputFileTimestamp(), getReferenceDelimiter());
+        options.validate();
+
+        NetCommand cmd = new NetCommand(this, getTaskName(), options.executable());
+        options.applyTo(cmd, this);                     // switches comuns
+
+        ScanContext ctx = new ScanContext(
+                cmd,
+                getProject(),
+                getOutputFileTimestamp(),
+                getReferenceDelimiter());
+
+        int outdated = options.scanReferenceSets(ctx);  // dependências
+
+        addCompilerSpecificOptions(cmd);                // hook específico
         addFilesAndExecute(cmd, outdated > 0);
     }
 
-    protected void validate() {
-        if (cfg.executable == null)
-            throw new BuildException("Executable não definido");
-        if (outputFile != null && outputFile.isDirectory())
-            throw new BuildException("destFile não pode ser diretório");
-    }
-
-    protected NetCommand createNetCommand() {
-        return new NetCommand(this, getTaskName(), cfg.executable);
-    }
-
-    /* hooks */
+  
     protected abstract void addCompilerSpecificOptions(NetCommand cmd);
     protected abstract String  getReferenceDelimiter();
     protected abstract String  getFileExtension();
     protected abstract String  createResourceParameter(DotnetResource r);
 
-    /* ========================= config obj ======================== */
-    protected static final class CompilerConfig {
-        /* parâmetros simples */
-        String  executable, references, targetType, mainClass, extraOptions,
-                additionalModules;
-        int     warnLevel = 3;
-        boolean debug = true, optimize, utf8output, includeDefaultRefs = true,
-                failOnError = true;
-        File    win32icon, win32res;
+    
+    //3. Builder + Modelo Open/Closed                                    
+    
+    protected static final class CompileOptions {
 
-        /* coleções */
-        final Collection<DotnetDefine>   definitions    = new ArrayList<>();
-        final Collection<DotnetResource> resources      = new ArrayList<>();
-        final Collection<FileSet>        referenceSets  = new ArrayList<>();
+        private final List<Option> opts = new ArrayList<>();
+        private String executable;                                   // obrigatório
 
-        /* popula linha de comando comum */
-        void populate(NetCommand c, DotnetCompile owner) {
-            c.setFailOnError(failOnError);
-            c.addArgument("/nologo");
-            addIf(c, str("/addmodule:", additionalModules));
-            addIf(c, opt(debug, "/debug+"));
-            addIf(c, opt(optimize, "/optimize+"));
-            addIf(c, str("/warn:", warnLevel));
-            addIf(c, str("/target:", targetType));
-            addIf(c, str("/main:",   mainClass));
-            addIf(c, str("/out:",    owner.outputFile));
-            addIf(c, str("/reference:", references));
-            addIf(c, fileArg("/win32icon:", win32icon));
-            addIf(c, fileArg("/win32res:",  win32res));
-            addIf(c, opt(!includeDefaultRefs, "/nostdlib+"));
-            addIf(c, opt(utf8output, "/utf8output"));
-            addIf(c, extraOptions);
+        // ---------- setters fluentes ---------- 
+        CompileOptions executable(String e){ executable=e; return this; }
+        CompileOptions references(String r){ return add(new Value("/reference:", r)); }
+        CompileOptions referenceSet(FileSet fs){ return add(new ReferenceSet(fs)); }
+        CompileOptions define(DotnetDefine d){ return add(new Value("/d:", d.getValue())); }
+        CompileOptions resource(DotnetResource r){ return add(new ResourceOpt(r)); }
+        CompileOptions debug(boolean f){ return add(new Flag("/debug", f)); }
+        CompileOptions optimize(boolean f){ return add(new Flag("/optimize", f)); }
+        CompileOptions warnLevel(int n){ return add(new Value("/warn:", n)); }
+        CompileOptions targetType(String t){ return add(new Value("/target:", t)); }
+        CompileOptions mainClass(String c){ return add(new Value("/main:", c)); }
+        CompileOptions extra(String x){ return add(new Raw(x)); }
+        CompileOptions additionalModules(String m){ return add(new Value("/addmodule:", m)); }
+        CompileOptions utf8Output(boolean f){ return add(new Flag("/utf8output", f)); }
+        CompileOptions includeDefaultRefs(boolean f){ return add(new Flag("/nostdlib", !f)); }
+        CompileOptions win32Icon(File f){ return add(new FileValue("/win32icon:", f)); }
+        CompileOptions win32Res(File f){ return add(new FileValue("/win32res:", f)); }
+        CompileOptions failOnError(boolean f){ return add(cmd -> cmd.setFailOnError(f)); }
 
-            String defs = join(definitions, ";", DotnetDefine::getValue);
-            addIf(c, defs == null ? null : "/d:" + defs);
+        //---------- comportamento ---------- 
+        void validate(){
+            if (executable == null)
+                throw new BuildException("Executable não definido");
+        }
+        String executable(){ return executable; }
 
-            for (DotnetResource r : resources) {
-                String p = owner.createResourceParameter(r);
-                if (p != null) c.addArgument(p);
-            }
+        void applyTo(NetCommand cmd, DotnetCompile owner){
+            cmd.addArgument("/nologo");
+            opts.forEach(o -> o.apply(cmd, owner));
         }
 
-        /* varre references */
-        int scanReferenceSets(NetCommand cmd, Project p, long outTs, String delim) {
-            if (referenceSets.isEmpty()) return 0;
-            Set<File> refs = new LinkedHashSet<>();
-            for (FileSet fs : referenceSets)
-                Collections.addAll(refs,
-                        Arrays.stream(fs.getDirectoryScanner(p).getIncludedFiles())
-                              .map(f -> new File(fs.getDir(p), f))
-                              .toArray(File[]::new));
+        int scanReferenceSets(ScanContext ctx){
+            return opts.stream()
+                       .filter(ReferenceSet.class::isInstance)
+                       .map(ReferenceSet.class::cast)
+                       .mapToInt(r -> r.applyAndReturnOutdated(ctx))
+                       .sum();
+        }
 
-            int outdated = 0;
-            StringJoiner sj = new StringJoiner(delim, "/reference:", "");
-            for (File f : refs) {
-                if (!isManagedBinary(f)) continue;
+        private CompileOptions add(Option o){ opts.add(o); return this; }
+    }
+
+    
+    //4. Hierarquia de Option                                            
+    
+    private interface Option { void apply(NetCommand c, DotnetCompile owner); }
+
+    private static final class Value implements Option {
+        private final String prefix; private final Object val;
+        Value(String p,Object v){ prefix=p; val=v; }
+        public void apply(NetCommand c, DotnetCompile o){
+            if(val!=null) c.addArgument(prefix+val);
+        }
+    }
+    private static final class Raw implements Option {
+        private final String arg; Raw(String a){ arg=a; }
+        public void apply(NetCommand c,DotnetCompile o){
+            if(arg!=null && !arg.isEmpty()) c.addArgument(arg);
+        }
+    }
+    private static final class Flag implements Option {
+        private final String flag; private final boolean on;
+        Flag(String f,boolean o){ flag=f; on=o; }
+        public void apply(NetCommand c,DotnetCompile o){
+            if(on) c.addArgument(flag+(flag.endsWith("+")||flag.endsWith("-")?"":"+"));
+        }
+    }
+    private static final class FileValue implements Option {
+        private final String prefix; private final File file;
+        FileValue(String p,File f){ prefix=p; file=f; }
+        public void apply(NetCommand c,DotnetCompile o){
+            if(file!=null) c.addArgument(prefix+file);
+        }
+    }
+    private static final class ResourceOpt implements Option {
+        private final DotnetResource res;
+        ResourceOpt(DotnetResource r){ res=r; }
+        public void apply(NetCommand c,DotnetCompile o){
+            String p=o.createResourceParameter(res);
+            if(p!=null) c.addArgument(p);
+        }
+    }
+    private static final class ReferenceSet implements Option {
+        private final FileSet set;
+        private Set<File> files;
+        ReferenceSet(FileSet s){ set=s; }
+        public void apply(NetCommand c,DotnetCompile o){ /* emissão posterior */ }
+
+        int applyAndReturnOutdated(ScanContext ctx){
+            materialise(ctx.project());
+            int outdated=0;
+            StringJoiner sj=new StringJoiner(ctx.delimiter(), "/reference:", "");
+            for(File f:files){
                 sj.add(f.getPath());
-                if (f.lastModified() > outTs) outdated++;
+                if(f.lastModified()>ctx.outputTimestamp()) outdated++;
             }
-            cmd.addArgument(sj.toString());
+            ctx.cmd().addArgument(sj.toString());
             return outdated;
         }
-
-        /* helpers */
-        private static boolean isManagedBinary(File f) {
-            String n = f.getName().toLowerCase(Locale.ROOT);
-            return n.endsWith(".exe") || n.endsWith(".dll") || n.endsWith(".netmodule");
+        private void materialise(Project p){
+            if(files!=null) return;
+            files=new LinkedHashSet<>();
+            for(String inc:set.getDirectoryScanner(p).getIncludedFiles()){
+                File f=new File(set.getDir(p),inc);
+                if(isManagedBinary(f)) files.add(f);
+            }
         }
-        private static void addIf(NetCommand c, String arg) {
-            if (arg != null && !arg.isEmpty()) c.addArgument(arg);
-        }
-        private static String opt(boolean flag, String txt) { return flag ? txt : null; }
-        private static String str(String prefix, Object v)  { return v == null ? null : prefix + v; }
-        private static String fileArg(String p, File f)     { return f == null ? null : p + f; }
-        private static <T> String join(Collection<T> c, String d,
-                                       java.util.function.Function<T,String> fn) {
-            return c.isEmpty() ? null
-                               : String.join(d, c.stream().map(fn).toArray(String[]::new));
+        private static boolean isManagedBinary(File f){
+            String n=f.getName().toLowerCase(Locale.ROOT);
+            return n.endsWith(".exe")||n.endsWith(".dll")||n.endsWith(".netmodule");
         }
     }
 
-    /* enum de destino */
+    
+    private record ScanContext(NetCommand cmd,
+                               Project     project,
+                               long        outputTimestamp,
+                               String      delimiter) { }
+
+   
     public static class TargetTypes extends EnumeratedAttribute {
-        @Override public String[] getValues() {
-            return new String[] { "exe", "library", "module", "winexe" };
+        @Override public String[] getValues(){
+            return new String[]{"exe","library","module","winexe"};
         }
     }
 }
