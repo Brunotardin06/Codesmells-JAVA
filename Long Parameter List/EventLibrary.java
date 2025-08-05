@@ -6,7 +6,7 @@ public class EventLibrary extends ModuleClassLibrary<Event> {
   public EventLibrary(  ModuleEnvironment environment,  ReflectFactory reflectFactory,  CopyStrategyLibrary copyStrategyLibrary){
     super(environment,reflectFactory,copyStrategyLibrary);
   }
-  @Override protected <C extends Event>ClassMetadata<C,?> createMetadata(  Class<C> type,  ReflectFactory factory,  CopyStrategyLibrary copyStrategies,  ResourceUrn uri){
+   protected <C extends Event>ClassMetadata<C,?> createMetadata(  Class<C> type,  ReflectFactory factory,  CopyStrategyLibrary copyStrategies,  ResourceUrn uri){
     try {
       return new EventMetadata<>(type,copyStrategies,factory,uri);
     }
@@ -15,13 +15,13 @@ public class EventLibrary extends ModuleClassLibrary<Event> {
       return null;
     }
   }
-  @Override @SuppressWarnings("unchecked") public <T extends Event>EventMetadata<T> getMetadata(  Class<T> clazz){
+   @SuppressWarnings("unchecked") public <T extends Event>EventMetadata<T> getMetadata(  Class<T> clazz){
     return (EventMetadata<T>)super.getMetadata(clazz);
   }
-  @Override @SuppressWarnings("unchecked") public <T extends Event>EventMetadata<T> getMetadata(  T object){
+   @SuppressWarnings("unchecked") public <T extends Event>EventMetadata<T> getMetadata(  T object){
     return (EventMetadata<T>)super.getMetadata(object);
   }
-  @Override @SuppressWarnings("unchecked") public EventMetadata<? extends Event> getMetadata(  ResourceUrn uri){
+   @SuppressWarnings("unchecked") public EventMetadata<? extends Event> getMetadata(  ResourceUrn uri){
     return (EventMetadata<? extends Event>)super.getMetadata(uri);
   }
 }
