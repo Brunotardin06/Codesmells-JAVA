@@ -7,7 +7,7 @@ class MouseHandler extends MouseInputAdapter {
 
     /* ───────── Mouse events ───────── */
 
-    @Override
+    
     public void mouseEntered(MouseEvent e) {
         ToolTipManager ttm = ToolTipManager.sharedInstance();
         toolTipInitialDelay = ttm.getInitialDelay();
@@ -16,14 +16,14 @@ class MouseHandler extends MouseInputAdapter {
         ttm.setReshowDelay(0);
     }
 
-    @Override
+    
     public void mouseExited(MouseEvent e) {
         ToolTipManager ttm = ToolTipManager.sharedInstance();
         ttm.setInitialDelay(toolTipInitialDelay);
         ttm.setReshowDelay(toolTipReshowDelay);
     }
 
-    @Override
+    
     public void mousePressed(MouseEvent e) {
         textArea.requestFocus();
 
@@ -94,7 +94,7 @@ class MouseHandler extends MouseInputAdapter {
         }
     }
 
-    @Override
+  
     public void mouseDragged(MouseEvent e) {
         if (drag /* && e.getX() >= getWidth() - borderWidth * 2 */) {
             e.translatePoint(-getWidth(), 0);
@@ -102,7 +102,7 @@ class MouseHandler extends MouseInputAdapter {
         }
     }
 
-    @Override
+
     public void mouseReleased(MouseEvent e) {
         if (drag && e.getX() >= getWidth() - borderWidth * 2) {
             e.translatePoint(-getWidth(), 0);
@@ -111,3 +111,4 @@ class MouseHandler extends MouseInputAdapter {
         drag = false;
     }
 }
+
