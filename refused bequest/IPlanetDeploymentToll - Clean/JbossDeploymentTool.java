@@ -30,78 +30,65 @@ import org.apache.tools.ant.Project;
  * @see EjbJar#createJboss
  */
 public class JbossDeploymentTool extends GenericDeploymentTool {
-    protected static final String JBOSS_DD = "jboss.xml";
-    protected static final String JBOSS_CMP10D = "jaws.xml";
-    protected static final String JBOSS_CMP20D = "jbosscmp-jdbc.xml";
+    private static final String JBOSS_DD        = "jboss.xml";
+    private static final String JBOSS_CMP10D    = "jaws.xml";
+    private static final String JBOSS_CMP20D    = "jbosscmp-jdbc.xml";
 
-    /** Instance variable that stores the suffix for the jboss jarfile. */
     private String jarSuffix = ".jar";
 
-    /**
-     * Setter used to store the suffix for the generated JBoss jar file.
-     * @param inString the string to use as the suffix.
-     */
-    public void setSuffix(String inString) {
-        jarSuffix = inString;
+    // Mapeia versões CMP a seus arquivos
+    private static final Map<EjbJar.CMPVersion, String> CMP_DESCRIPTOR_MAP = Map.of(
+        EjbJar.CMPVersion.CMP1_0, JBOSS_CMP10D,
+        EjbJar.CMPVersion.CMP2_0, JBOSS_CMP20D
+    );
+
+    public void setSuffix(String suffix) {
+        this.jarSuffix = suffix;
     }
 
-    /**
-     * Add any vendor specific files which should be included in the
-     * EJB Jar.
-     */
-    protected void addVendorFiles(Hashtable ejbFiles, String ddPrefix) {
-        File jbossDD = new File(getConfig().descriptorDir, ddPrefix + JBOSS_DD);
-        if (jbossDD.exists()) {
-            ejbFiles.put(META_DIR + JBOSS_DD, jbossDD);
-        } else {
-            log("Unable to locate jboss deployment descriptor. "
-                + "It was expected to be in " + jbossDD.getPath(),
-                Project.MSG_WARN);
-            return;
-        }
-        String descriptorFileName = JBOSS_CMP10D;
-        if (EjbJar.CMPVersion.CMP2_0.equals(getParent().getCmpversion())) {
-            descriptorFileName = JBOSS_CMP20D;
-        }
-        File jbossCMPD
-            = new File(getConfig().descriptorDir, ddPrefix + descriptorFileName);
+    protected void addVendorFiles(Hashtable<String,File> ejbFiles, String ddPrefix) {
+        addDeploymentDescriptor(ejbFiles, ddPrefix);
+        addCmpDescriptor(ejbFiles, ddPrefix);
+    }
 
-        if (jbossCMPD.exists()) {
-            ejbFiles.put(META_DIR + descriptorFileName, jbossCMPD);
-        } else {
-            log("Unable to locate jboss cmp descriptor. "
-                + "It was expected to be in "
-                + jbossCMPD.getPath(), Project.MSG_VERBOSE);
-            return;
+    private void addDeploymentDescriptor(Hashtable<String,File> ejbFiles, String ddPrefix) {
+        File ddFile = locateDescriptor(ddPrefix + JBOSS_DD);
+        if (ddFile != null) {
+            ejbFiles.put(META_DIR + JBOSS_DD, ddFile);
         }
     }
 
-    /**
-     * Get the vendor specific name of the Jar that will be output. The modification date
-     * of this jar will be checked against the dependent bean classes.
-     */
-    File getVendorOutputJarFile(String baseName) {
-        if (getDestDir() == null && getParent().getDestdir() == null) {
-            throw new BuildException("DestDir not specified");
-        }
-        if (getDestDir() == null) {
-            return new File(getParent().getDestdir(), baseName + jarSuffix);
-        } else {
-            return new File(getDestDir(), baseName + jarSuffix);
+    private void addCmpDescriptor(Hashtable<String,File> ejbFiles, String ddPrefix) {
+        EjbJar.CMPVersion version = getParent().getCmpversion();
+        String fileName = CMP_DESCRIPTOR_MAP.getOrDefault(version, JBOSS_CMP10D);
+        File cmpFile = locateDescriptor(ddPrefix + fileName);
+
+        if (cmpFile != null) {
+            ejbFiles.put(META_DIR + fileName, cmpFile);
         }
     }
 
-    /**
-     * Called to validate that the tool parameters have been configured.
-     *
-     * @throws BuildException If the Deployment Tool's configuration isn't
-     *                        valid
-     * @since ant 1.6
-     */
+    private File locateDescriptor(String filename) {
+        File f = new File(getConfig().descriptorDir, filename);
+        if (!f.exists()) {
+            int lvl = filename.equals(JBOSS_DD) ? Project.MSG_WARN : Project.MSG_VERBOSE;
+            log("Não encontrou descriptor “" + filename + "” em: " + f.getPath(), lvl);
+            return null;
+        }
+        return f;
+    }
+
+    protected File getVendorOutputJarFile(String baseName) {
+        File dest = Optional.ofNullable(getDestDir())
+                            .orElse(new File(getParent().getDestdir()));
+        return new File(dest, baseName + jarSuffix);
+    }
+
     public void validateConfigured() throws BuildException {
+        // (sem mudança por ora)
     }
 
     private EjbJar getParent() {
-        return (EjbJar) this.getTask();
+        return (EjbJar) getTask();
     }
 }
