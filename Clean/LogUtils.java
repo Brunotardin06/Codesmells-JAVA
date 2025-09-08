@@ -124,30 +124,6 @@ public final class LogUtils {
         }
     }
 
-    public static class FilePrinter implements LogPrinter {
-        private final Config config;
-        private final ExecutorService executor = Executors.newSingleThreadExecutor();
-        private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault());
-
-        public FilePrinter(Config cfg) { this.config = cfg; }
-
-        @Override
-        public void print(@NonNull LogMessage msg) {
-            executor.execute(() -> {
-                String date = sdf.format(new Date(msg.timestamp)).substring(0,10);
-                String filePath = config.getLogDir() + date + config.getFileExtension();
-                try {
-                    File dir = new File(config.getLogDir());
-                    if (!dir.exists() && !dir.mkdirs()) return;
-                    try (FileWriter fw = new FileWriter(filePath, true)) {
-                        fw.write(sdf.format(new Date(msg.timestamp))
-                            + " " + msg.level + "/" + msg.tag
-                            + " " + msg.message + System.lineSeparator());
-                    }
-                } catch (IOException ignored) {}
-            });
-        }
-    }
 
     public static final class Config {
         private final boolean enabled;
@@ -191,3 +167,4 @@ public final class LogUtils {
         }
     }
 }
+
