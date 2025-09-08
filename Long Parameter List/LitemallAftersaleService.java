@@ -54,14 +54,6 @@
     aftersale.setUpdateTime(LocalDateTime.now());
     aftersaleMapper.insertSelective(aftersale);
   }
-  public void deleteByIds(  List<Integer> ids){
-    LitemallAftersaleExample example=new LitemallAftersaleExample();
-    example.or().andIdIn(ids).andDeletedEqualTo(false);
-    LitemallAftersale aftersale=new LitemallAftersale();
-    aftersale.setUpdateTime(LocalDateTime.now());
-    aftersale.setDeleted(true);
-    aftersaleMapper.updateByExampleSelective(aftersale,example);
-  }
   public void deleteById(  Integer id){
     aftersaleMapper.logicalDeleteByPrimaryKey(id);
   }
