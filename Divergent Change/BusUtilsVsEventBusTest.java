@@ -73,30 +73,6 @@ public class BusUtilsVsEventBusTest extends BaseTest {
         tests.forEach(BusUtilsVsEventBusTest::unregisterPair);
     }
 
-    /* --------------------------- compare10000 times ----- */
-
-    public void compareUnregister10000Times() {
-        List<BusUtilsVsEventBusTest> tests = new ArrayList<>();
-        for (int i = 0; i < 10000; i++) {
-            BusUtilsVsEventBusTest t = new BusUtilsVsEventBusTest();
-            registerPair(t);
-            tests.add(t);
-        }
-
-        compareWithEventBus(new BenchConfig("Unregister 10000 times.", 10, 1), new CompareCallback() {
-            @Override public void runEventBus() {
-                tests.forEach(EventBus.getDefault()::unregister);
-            }
-            @Override public void runBusUtils() {
-                tests.forEach(BusUtils::unregister);
-            }
-            @Override public void restState() {
-                tests.forEach(BusUtilsVsEventBusTest::registerPair);
-            }
-        });
-
-        tests.forEach(BusUtilsVsEventBusTest::unregisterPair);
-    }
 
     
 public record BenchResult(String name, long eventBusAvg, long busUtilsAvg) { }
@@ -114,7 +90,6 @@ public record BenchResult(String name, long eventBusAvg, long busUtilsAvg) { }
     	return new BenchResult(cfg.name(), ebAvg, buAvg);
 	}
 
-/* -------------------- chamada de exemplo (impressão separada) */
     BenchResult r = compareWithEventBus(cfg, cb);
     System.out.println(r.name() + "\nEventBus: " + r.eventBusAvg()
                                  + " ms\nBusUtils: " + r.busUtilsAvg() + " ms");
