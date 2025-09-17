@@ -14,10 +14,6 @@ import org.apache.tools.ant.util.FileUtils;
  * Recurso que realiza (des)compressão “on‑the‑fly”
  * mantendo toda a interface de {@link Resource}.
  *
- * <p>Todos os mutators herdados são rejeitados
- * — <i>Refused Bequest</i> — já que alterariam
- * incoerentemente o estado do recurso interno.</p>
- *
  * @since Ant 1.7
  */
 public abstract class CompressedResource extends Resource {
